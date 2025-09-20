@@ -310,8 +310,6 @@ def catch_all(full_path: str):
         return FileResponse(index_path)
     
     raise HTTPException(status_code=404, detail="Page not found")
-    finally:
-        db.close()
 
 @app.post("/upload-pdf-to-notion/")
 async def upload_pdf_to_notion(file: UploadFile = File(...)):
