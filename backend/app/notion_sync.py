@@ -13,11 +13,14 @@ load_dotenv()
 class NotionSync:
     def __init__(self):
         self.notion_token = os.getenv("NOTION_TOKEN")
-        self.headers = {
-            "Authorization": f"Bearer {self.notion_token}",
-            "Content-Type": "application/json",
-            "Notion-Version": "2022-06-28"
-        }
+        if self.notion_token:
+            self.headers = {
+                "Authorization": f"Bearer {self.notion_token}",
+                "Content-Type": "application/json",
+                "Notion-Version": "2022-06-28"
+            }
+        else:
+            self.headers = None
         self.base_url = "https://api.notion.com/v1"
         
         # Database IDs - will be set from environment

@@ -8,7 +8,8 @@ from typing import Dict, Any
 
 class ProspectusParser:
     def __init__(self):
-        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        api_key = os.getenv("OPENAI_API_KEY")
+        self.client = OpenAI(api_key=api_key) if api_key else None
     
     def extract_text_from_pdf(self, pdf_path: str) -> str:
         """Extract raw text from PDF"""
@@ -21,6 +22,9 @@ class ProspectusParser:
     
     def parse_with_llm(self, text: str) -> Dict[str, Any]:
         """Use GPT-4 to extract structured data from prospectus text"""
+        
+        if not self.client:
+            raise Exception("OpenAI API key not configured. Set OPENAI_API_KEY environment variable.")
         
         prompt = """
         Extract the following information from this GSA prospectus text.
