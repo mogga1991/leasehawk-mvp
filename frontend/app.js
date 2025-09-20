@@ -11,14 +11,6 @@ let propertyMatches = {};
 // Initialize map on page load
 document.addEventListener('DOMContentLoaded', function() {
     initializeMap();
-    
-    // Check if coming back from OAuth
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('auth') === 'success') {
-        console.log('OAuth successful, removing auth param from URL');
-        window.history.replaceState({}, document.title, window.location.pathname);
-    }
-    
     autoSyncAndLoadOpportunities();
 });
 
@@ -35,16 +27,6 @@ function initializeMap() {
 
 async function autoSyncAndLoadOpportunities() {
     try {
-        // Check auth status first
-        const authResponse = await fetch(`${API_URL}/auth/status`);
-        const authStatus = await authResponse.json();
-        
-        if (!authStatus.authenticated) {
-            console.log('Not authenticated with Notion, showing auth prompt...');
-            showNotionAuthPrompt();
-            return;
-        }
-        
         // First sync from Notion automatically
         console.log('Auto-syncing from Notion...');
         await fetch(`${API_URL}/sync-from-notion/`, {
@@ -377,35 +359,5 @@ document.getElementById('searchInput')?.addEventListener('input', (e) => {
     renderOpportunities(filtered);
 });
 
-function showNotionAuthPrompt() {
-    const opportunitiesDiv = document.getElementById('opportunitiesList');
-    opportunitiesDiv.innerHTML = `
-        <div style="padding: 40px; text-align: center; color: #64748b;">
-            <i class="fas fa-key" style="font-size: 48px; margin-bottom: 16px; display: block; color: #3b82f6;"></i>
-            <h3 style="margin-bottom: 8px;">Connect to Notion</h3>
-            <p style="margin-bottom: 20px;">Authorize LeaseHawk to access your Notion workspace to sync GSA prospectuses and property data.</p>
-            <button onclick="startNotionAuth()" style="
-                background: #3b82f6; 
-                color: white; 
-                border: none; 
-                padding: 12px 24px; 
-                border-radius: 6px; 
-                font-size: 16px; 
-                cursor: pointer;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            ">
-                <i class="fas fa-external-link-alt" style="margin-right: 8px;"></i>
-                Connect to Notion
-            </button>
-            <p style="font-size: 14px; color: #9ca3af; margin-top: 16px;">
-                This will open a new window to authenticate with Notion. Make sure your GSA Prospectuses Pipeline database is shared with the integration.
-            </p>
-        </div>
-    `;
-}
-
-function startNotionAuth() {
-    window.location.href = `${API_URL}/auth/notion`;
-}
 
 

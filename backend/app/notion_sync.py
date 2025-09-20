@@ -12,8 +12,7 @@ load_dotenv()
 
 class NotionSync:
     def __init__(self):
-        # Try OAuth token first, fallback to direct token
-        self.notion_token = os.getenv("NOTION_ACCESS_TOKEN") or os.getenv("NOTION_TOKEN")
+        self.notion_token = os.getenv("NOTION_TOKEN")
         if self.notion_token:
             self.headers = {
                 "Authorization": f"Bearer {self.notion_token}",
