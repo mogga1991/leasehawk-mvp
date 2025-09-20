@@ -1,0 +1,70 @@
+# Agent OS Configuration
+# LeaseHawk MVP Project
+
+version: "1.0.0"
+created: "2025-09-20"
+
+project:
+  name: "LeaseHawk MVP"
+  type: "web-application"
+  domain: "real-estate-technology"
+  stage: "mvp-development"
+
+architecture:
+  backend:
+    framework: "FastAPI"
+    language: "Python"
+    type: "api-server"
+  frontend:
+    framework: "Vanilla JavaScript"
+    type: "spa"
+  database:
+    primary: "PostgreSQL"
+    type: "relational"
+
+directories:
+  specs: ".agent-os/specs/"
+  product: ".agent-os/product/"
+  instructions: ".agent-os/instructions/"
+  templates: ".agent-os/templates/"
+  data: ".agent-os/data/"
+
+workflows:
+  spec_creation:
+    enabled: true
+    auto_tasks: true
+    require_technical_spec: true
+  
+  task_tracking:
+    enabled: true
+    format: "markdown"
+    auto_update: true
+  
+  roadmap_management:
+    enabled: true
+    planning_horizon: "quarterly"
+    review_cycle: "weekly"
+
+integrations:
+  git:
+    enabled: true
+    auto_commit: false
+    branch_strategy: "feature-branch"
+  
+  documentation:
+    auto_generate: false
+    format: "markdown"
+    location: ".agent-os/"
+
+agent_capabilities:
+  - product_analysis
+  - spec_creation
+  - task_management
+  - code_review
+  - architecture_planning
+  - performance_optimization
+
+constraints:
+  max_spec_size: "10mb"
+  max_task_count: "100"
+  retention_period: "1year"

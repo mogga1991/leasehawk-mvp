@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LeaseHawk MVP - GSA Prospectus Intelligence</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Leaflet CSS for mapping -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header Bar -->
+        <header class="header-bar">
+            <div class="logo">
+                <i class="fas fa-eagle"></i>
+                <span>LeaseHawk</span>
+            </div>
+            <div class="header-info">
+                <span class="opportunities-count" id="opportunityCount">0 GSA opportunities in pipeline</span>
+            </div>
+            <div class="header-actions">
+                <button class="btn-upload" onclick="toggleUploadModal()">
+                    <i class="fas fa-upload"></i> Upload Prospectus
+                </button>
+            </div>
+        </header>
+
+        <div class="main-container">
+            <!-- Left Sidebar with GSA Opportunities -->
+            <div class="sidebar">
+                <!-- Search and Filter Bar -->
+                <div class="search-filter-bar">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchInput" placeholder="Search by agency, location...">
+                    </div>
+                    <button class="filter-btn" onclick="toggleFilters()">
+                        <i class="fas fa-filter"></i> More filters
+                    </button>
+                </div>
+
+                <!-- Filter Panel (Hidden by default) -->
+                <div class="filter-panel" id="filterPanel" style="display: none;">
+                    <div class="filter-group">
+                        <label>Min Size (sq ft)</label>
+                        <input type="number" id="minSize" placeholder="0">
+                    </div>
+                    <div class="filter-group">
+                        <label>Max Size (sq ft)</label>
+                        <input type="number" id="maxSize" placeholder="Any">
+                    </div>
+                    <div class="filter-group">
+                        <label>Min Annual Value</label>
+                        <input type="number" id="minValue" placeholder="$0">
+                    </div>
+                    <button class="btn-apply-filters" onclick="applyFilters()">Apply Filters</button>
+                </div>
+
+                <!-- Sort Options -->
+                <div class="sort-bar">
+                    <span>Sort by:</span>
+                    <button class="sort-btn active" onclick="sortBy('date')">Latest</button>
+                    <button class="sort-btn" onclick="sortBy('value')">Value</button>
+                    <button class="sort-btn" onclick="sortBy('size')">Size</button>
+                    <button class="sort-btn" onclick="sortBy('matches')">Matches</button>
+                </div>
+
+                <!-- GSA Opportunities List -->
+                <div class="opportunities-list" id="opportunitiesList">
+                    <!-- Opportunities will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Right Side Map -->
+            <div class="map-container">
+                <div id="map"></div>
+                
+                <!-- Map Controls Overlay -->
+                <div class="map-controls">
+                    <button class="map-control-btn" onclick="toggleMapView()">
+                        <i class="fas fa-layer-group"></i>
+                    </button>
+                    <button class="map-control-btn" onclick="zoomToFit()">
+                        <i class="fas fa-compress"></i>
+                    </button>
+                </div>
+
+                <!-- Property Details Popup (Initially Hidden) -->
+                <div class="property-popup" id="propertyPopup" style="display: none;">
+                    <button class="close-popup" onclick="closePropertyPopup()">×</button>
+                    <div class="popup-content" id="popupContent">
+                        <!-- Property details will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upload Modal -->
+        <div class="modal" id="uploadModal" style="display: none;">
+            <div class="modal-content">
+                <span class="close" onclick="toggleUploadModal()">&times;</span>
+                <h2>Upload GSA Prospectus</h2>
+                <div class="upload-area">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <p>Drag and drop your PDF here or click to browse</p>
+                    <input type="file" id="prospectusFile" accept=".pdf" onchange="handleFileSelect(event)">
+                    <button class="btn-primary" onclick="uploadProspectus()">Parse Prospectus</button>
+                </div>
+                <div id="uploadResult"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS for mapping -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
