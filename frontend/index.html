@@ -22,8 +22,8 @@
                 <span class="opportunities-count" id="opportunityCount">0 GSA opportunities in pipeline</span>
             </div>
             <div class="header-actions">
-                <button class="btn-upload" onclick="toggleUploadModal()">
-                    <i class="fas fa-upload"></i> Upload Prospectus
+                <button class="btn-sync" onclick="syncFromNotion()">
+                    <i class="fas fa-sync"></i> Sync from Notion
                 </button>
             </div>
         </header>
@@ -98,18 +98,16 @@
             </div>
         </div>
 
-        <!-- Upload Modal -->
-        <div class="modal" id="uploadModal" style="display: none;">
+        <!-- Sync Status Modal -->
+        <div class="modal" id="syncModal" style="display: none;">
             <div class="modal-content">
-                <span class="close" onclick="toggleUploadModal()">&times;</span>
-                <h2>Upload GSA Prospectus</h2>
-                <div class="upload-area">
-                    <i class="fas fa-cloud-upload-alt"></i>
-                    <p>Drag and drop your PDF here or click to browse</p>
-                    <input type="file" id="prospectusFile" accept=".pdf" onchange="handleFileSelect(event)">
-                    <button class="btn-primary" onclick="uploadProspectus()">Parse Prospectus</button>
+                <span class="close" onclick="toggleSyncModal()">&times;</span>
+                <h2>Sync from Notion</h2>
+                <div class="sync-area">
+                    <i class="fas fa-database"></i>
+                    <p>Syncing data from your "GSA Prospectuses Pipeline" database...</p>
+                    <div id="syncResult"></div>
                 </div>
-                <div id="uploadResult"></div>
             </div>
         </div>
     </div>

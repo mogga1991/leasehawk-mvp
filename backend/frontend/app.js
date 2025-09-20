@@ -47,6 +47,20 @@ async function loadOpportunities() {
 }
 
 function renderOpportunities(opps) {
+    if (opps.length === 0) {
+        document.getElementById('opportunitiesList').innerHTML = `
+            <div style="padding: 40px; text-align: center; color: #64748b;">
+                <i class="fas fa-database" style="font-size: 48px; margin-bottom: 16px; display: block;"></i>
+                <h3 style="margin-bottom: 8px;">No GSA Opportunities Found</h3>
+                <p style="margin-bottom: 16px;">Add prospectuses to your "GSA Prospectuses Pipeline" Notion database, then click "Sync from Notion" to load them here.</p>
+                <button class="btn-sync" onclick="syncFromNotion()" style="margin: 0 auto;">
+                    <i class="fas fa-sync"></i> Sync from Notion
+                </button>
+            </div>
+        `;
+        return;
+    }
+    
     const listHTML = opps.map(opp => {
         const matchCount = propertyMatches[opp.prospectus.id]?.length || 0;
         const matchClass = matchCount > 5 ? '' : matchCount > 0 ? 'low' : 'none';
@@ -295,55 +309,38 @@ function sortBy(criteria) {
     renderOpportunities(sorted);
 }
 
-// Upload Functions
-function toggleUploadModal() {
-    const modal = document.getElementById('uploadModal');
+// Sync Functions
+function toggleSyncModal() {
+    const modal = document.getElementById('syncModal');
     modal.style.display = modal.style.display === 'none' ? 'flex' : 'none';
 }
 
-function handleFileSelect(event) {
-    const fileName = event.target.files[0]?.name;
-    if (fileName) {
-        document.querySelector('.upload-area p').textContent = `Selected: ${fileName}`;
-    }
-}
-
-async function uploadProspectus() {
-    const fileInput = document.getElementById('prospectusFile');
-    const file = fileInput.files[0];
-    
-    if (!file) {
-        alert('Please select a file');
-        return;
-    }
-    
-    const formData = new FormData();
-    formData.append('file', file);
+async function syncFromNotion() {
+    toggleSyncModal();
     
     try {
-        const response = await fetch(`${API_URL}/parse-prospectus/`, {
-            method: 'POST',
-            body: formData
+        const response = await fetch(`${API_URL}/sync-from-notion/`, {
+            method: 'POST'
         });
         
         const result = await response.json();
         
-        document.getElementById('uploadResult').innerHTML = `
+        document.getElementById('syncResult').innerHTML = `
             <div style="color: #10b981; margin-top: 16px;">
-                ✅ Prospectus parsed successfully!
+                ✅ Successfully synced ${result.prospectuses_synced || 0} prospectuses and ${result.properties_synced || 0} properties from Notion!
             </div>
         `;
         
-        // Reload opportunities after upload
+        // Reload opportunities after sync
         setTimeout(() => {
-            toggleUploadModal();
+            toggleSyncModal();
             loadOpportunities();
-        }, 1500);
+        }, 2000);
     } catch (error) {
         console.error('Error:', error);
-        document.getElementById('uploadResult').innerHTML = `
+        document.getElementById('syncResult').innerHTML = `
             <div style="color: #ef4444; margin-top: 16px;">
-                ❌ Error parsing prospectus
+                ❌ Error syncing from Notion. Please check your API configuration.
             </div>
         `;
     }

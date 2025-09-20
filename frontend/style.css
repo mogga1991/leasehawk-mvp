@@ -60,8 +60,8 @@ body {
     font-size: 14px;
 }
 
-.btn-upload {
-    background: var(--primary);
+.btn-sync {
+    background: var(--success);
     color: white;
     border: none;
     padding: 8px 16px;
@@ -73,8 +73,8 @@ body {
     gap: 8px;
 }
 
-.btn-upload:hover {
-    background: var(--secondary);
+.btn-sync:hover {
+    background: #059669;
 }
 
 /* Main Container */
@@ -417,22 +417,19 @@ body {
     color: var(--text-secondary);
 }
 
-.upload-area {
-    border: 2px dashed var(--border);
+.sync-area {
+    border: 2px solid var(--success);
     border-radius: 8px;
     padding: 40px;
     text-align: center;
     margin: 20px 0;
+    background: rgba(16, 185, 129, 0.05);
 }
 
-.upload-area i {
+.sync-area i {
     font-size: 48px;
-    color: var(--text-secondary);
+    color: var(--success);
     margin-bottom: 16px;
-}
-
-.upload-area input[type="file"] {
-    margin: 20px 0;
 }
 
 .btn-primary {
