@@ -13,8 +13,134 @@ sys.path.append(backend_path)
 from backend.app.database import engine, SessionLocal
 from backend.app.models import Base, Prospectus, Property, Match
 
-# Create tables
-Base.metadata.create_all(bind=engine)
+# Initialize database with auto-seeding
+def init_database():
+    """Initialize database and seed with sample data if empty"""
+    from datetime import datetime, timedelta
+    
+    # Create tables
+    Base.metadata.create_all(bind=engine)
+    
+    # Check if we need to seed data
+    db = SessionLocal()
+    try:
+        prospectus_count = db.query(Prospectus).count()
+        if prospectus_count == 0:
+            print("🌱 Seeding database with sample GSA data...")
+            
+            # Create sample prospectuses
+            p1 = Prospectus(
+                prospectus_number="GSA-R11-PX-22-000123",
+                agency="Social Security Administration",
+                location="Atlanta, GA",
+                state="GA",
+                estimated_nusf=50000,
+                estimated_annual_cost=1250000.00,
+                current_lease_expiration=datetime.now() + timedelta(days=180),
+                parking_spaces=200,
+                special_requirements="Level IV security requirements, backup power",
+                status="active"
+            )
+            
+            p2 = Prospectus(
+                prospectus_number="GSA-R03-PX-22-000456",
+                agency="Department of Veterans Affairs", 
+                location="Philadelphia, PA",
+                state="PA",
+                estimated_nusf=35000,
+                estimated_annual_cost=875000.00,
+                current_lease_expiration=datetime.now() + timedelta(days=120),
+                parking_spaces=150,
+                special_requirements="ADA compliant, medical facility requirements",
+                status="active"
+            )
+            
+            p3 = Prospectus(
+                prospectus_number="GSA-R09-PX-22-000789",
+                agency="Internal Revenue Service",
+                location="Denver, CO", 
+                state="CO",
+                estimated_nusf=30000,
+                estimated_annual_cost=750000.00,
+                current_lease_expiration=datetime.now() + timedelta(days=240),
+                parking_spaces=125,
+                special_requirements="High security requirements, evidence storage",
+                status="active"
+            )
+            
+            db.add_all([p1, p2, p3])
+            db.commit()
+            
+            # Refresh to get IDs
+            for p in [p1, p2, p3]:
+                db.refresh(p)
+            
+            # Create sample properties
+            prop1 = Property(
+                address="1234 Peachtree Street NE",
+                city="Atlanta",
+                state="GA",
+                available_sqft=75000,
+                parking_spaces=250,
+                asking_rent_per_sqft=24.50,
+                source="loopnet"
+            )
+            
+            prop2 = Property(
+                address="5678 Market Street",
+                city="Philadelphia", 
+                state="PA",
+                available_sqft=52500,
+                parking_spaces=180,
+                asking_rent_per_sqft=26.00,
+                source="costar"
+            )
+            
+            prop3 = Property(
+                address="9012 17th Street",
+                city="Denver",
+                state="CO", 
+                available_sqft=45000,
+                parking_spaces=140,
+                asking_rent_per_sqft=24.00,
+                source="loopnet"
+            )
+            
+            db.add_all([prop1, prop2, prop3])
+            db.commit()
+            
+            # Refresh to get IDs
+            for p in [prop1, prop2, prop3]:
+                db.refresh(p)
+            
+            # Create sample matches
+            matches = []
+            for i, prospectus in enumerate([p1, p2, p3]):
+                match = Match(
+                    prospectus_id=prospectus.id,
+                    property_id=[prop1, prop2, prop3][i].id,
+                    total_score=0.92,
+                    size_score=0.95,
+                    location_score=0.90,
+                    parking_score=0.88,
+                    price_score=0.94,
+                    notes=f"Excellent match for {prospectus.agency}",
+                    status="potential"
+                )
+                matches.append(match)
+            
+            db.add_all(matches)
+            db.commit()
+            
+            print(f"✅ Database seeded with {len([p1, p2, p3])} prospectuses, {len([prop1, prop2, prop3])} properties, {len(matches)} matches")
+    except Exception as e:
+        print(f"Warning: Database seeding failed: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
+# Initialize database on startup
+init_database()
 
 app = FastAPI(title="LeaseHawk MVP - Production")
 
