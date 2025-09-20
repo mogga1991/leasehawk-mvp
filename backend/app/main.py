@@ -32,7 +32,7 @@ app.add_middleware(
 )
 
 # Mount static files (frontend)
-frontend_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "frontend")
+frontend_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "frontend")
 frontend_path = os.path.abspath(frontend_path)
 if os.path.exists(frontend_path):
     app.mount("/static", StaticFiles(directory=frontend_path), name="static")
@@ -70,7 +70,7 @@ def get_notion():
 @app.get("/")
 def read_root():
     # Serve the frontend index.html at root
-    frontend_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "frontend")
+    frontend_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "frontend")
     frontend_path = os.path.abspath(frontend_path)
     index_path = os.path.join(frontend_path, "index.html")
     if os.path.exists(index_path):
@@ -291,4 +291,43 @@ async def push_match_to_notion(prospectus_id: int, property_id: int):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# Serve static frontend files
+@app.get("/app.js")
+def serve_app_js():
+    frontend_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "frontend")
+    js_path = os.path.join(frontend_path, "app.js")
+    if os.path.exists(js_path):
+        return FileResponse(js_path, media_type="application/javascript")
+    raise HTTPException(status_code=404, detail="File not found")
+
+@app.get("/style.css")
+def serve_style_css():
+    frontend_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "frontend")
+    css_path = os.path.join(frontend_path, "style.css")
+    if os.path.exists(css_path):
+        return FileResponse(css_path, media_type="text/css")
+    raise HTTPException(status_code=404, detail="File not found")
+
+# Catch-all route to serve frontend for SPA routing
+@app.get("/{full_path:path}")
+def catch_all(full_path: str):
+    # Don't interfere with API routes or auth routes
+    if full_path.startswith("api/") or full_path.startswith("auth/"):
+        raise HTTPException(status_code=404, detail="Endpoint not found")
+    
+    # Serve specific static files
+    frontend_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "frontend")
+    frontend_path = os.path.abspath(frontend_path)
+    file_path = os.path.join(frontend_path, full_path)
+    
+    if os.path.exists(file_path) and os.path.isfile(file_path):
+        return FileResponse(file_path)
+    
+    # For everything else, serve index.html (SPA routing)
+    index_path = os.path.join(frontend_path, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    
+    raise HTTPException(status_code=404, detail="Page not found")
 
