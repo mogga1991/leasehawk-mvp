@@ -1,19 +1,23 @@
 import PyPDF2
 import re
 from datetime import datetime
-from openai import OpenAI
+import google.generativeai as genai
 import json
 import os
 from typing import Dict, Any
 
 class ProspectusParser:
     def __init__(self):
-        api_key = os.getenv("OPENAI_API_KEY")
+        api_key = os.getenv("GEMINI_API_KEY")
         try:
-            self.client = OpenAI(api_key=api_key) if api_key else None
+            if api_key:
+                genai.configure(api_key=api_key)
+                self.model = genai.GenerativeModel('gemini-pro')
+            else:
+                self.model = None
         except Exception as e:
-            print(f"Warning: Failed to initialize OpenAI client: {e}")
-            self.client = None
+            print(f"Warning: Failed to initialize Gemini client: {e}")
+            self.model = None
     
     def extract_text_from_pdf(self, pdf_path: str) -> str:
         """Extract raw text from PDF"""
@@ -25,10 +29,10 @@ class ProspectusParser:
         return text
     
     def parse_with_llm(self, text: str) -> Dict[str, Any]:
-        """Use GPT-4 to extract structured data from prospectus text"""
+        """Use Gemini to extract structured data from prospectus text"""
         
-        if not self.client:
-            raise Exception("OpenAI API key not configured. Set OPENAI_API_KEY environment variable.")
+        if not self.model:
+            raise Exception("Gemini API key not configured. Set GEMINI_API_KEY environment variable.")
         
         prompt = """
         Extract the following information from this GSA prospectus text.
@@ -62,16 +66,25 @@ class ProspectusParser:
         Prospectus text:
         """
         
-        response = self.client.chat.completions.create(
-            model="gpt-4-turbo-preview",
-            messages=[
-                {"role": "system", "content": "You are a GSA prospectus data extraction expert. Extract data precisely as it appears in the document."},
-                {"role": "user", "content": prompt + text[:4000]}  # Limit text for token management
-            ],
-            response_format={"type": "json_object"}
-        )
+        full_prompt = "You are a GSA prospectus data extraction expert. Extract data precisely as it appears in the document.\n\n" + prompt + "\n\nProspectus text:\n" + text[:4000]
         
-        return json.loads(response.choices[0].message.content)
+        response = self.model.generate_content(full_prompt)
+        
+        # Extract JSON from the response
+        response_text = response.text
+        # Find JSON content between ```json and ``` or just parse the whole response
+        try:
+            if "```json" in response_text:
+                json_start = response_text.find("```json") + 7
+                json_end = response_text.find("```", json_start)
+                json_content = response_text[json_start:json_end].strip()
+            else:
+                json_content = response_text.strip()
+            
+            return json.loads(json_content)
+        except json.JSONDecodeError:
+            # Fallback to regex parsing if JSON parsing fails
+            raise Exception(f"Failed to parse JSON from Gemini response: {response_text[:200]}...")
     
     def quick_parse(self, text: str) -> Dict[str, Any]:
         """Fallback regex parser for quick extraction"""
