@@ -1,8 +1,10 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 import os
+import requests
+import urllib.parse
 from dotenv import load_dotenv
 from datetime import datetime
 
@@ -290,88 +292,79 @@ async def push_match_to_notion(prospectus_id: int, property_id: int):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# Catch-all route to serve frontend for SPA routing
-@app.get("/{full_path:path}")
-def catch_all(full_path: str):
-    # Don't interfere with API routes
-    if full_path.startswith("api/"):
-        raise HTTPException(status_code=404, detail="API endpoint not found")
+# Notion OAuth Integration
+@app.get("/auth/notion")
+def notion_auth():
+    """Redirect to Notion OAuth authorization"""
+    client_id = os.getenv("NOTION_OAUTH_CLIENT_ID")
+    redirect_uri = os.getenv("NOTION_REDIRECT_URI")
     
-    # Serve static files
-    frontend_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend")
-    file_path = os.path.join(frontend_path, full_path)
+    if not client_id or not redirect_uri:
+        raise HTTPException(status_code=500, detail="OAuth not configured")
     
-    if os.path.exists(file_path) and os.path.isfile(file_path):
-        return FileResponse(file_path)
+    auth_url = f"https://api.notion.com/v1/oauth/authorize?client_id={client_id}&response_type=code&owner=user&redirect_uri={urllib.parse.quote(redirect_uri)}"
     
-    # For everything else, serve index.html (SPA routing)
-    index_path = os.path.join(frontend_path, "index.html")
-    if os.path.exists(index_path):
-        return FileResponse(index_path)
-    
-    raise HTTPException(status_code=404, detail="Page not found")
+    return RedirectResponse(url=auth_url)
 
-@app.post("/upload-pdf-to-notion/")
-async def upload_pdf_to_notion(file: UploadFile = File(...)):
-    """Parse PDF and create entry in Notion"""
+@app.get("/auth/notion/callback")
+async def notion_oauth_callback(request: Request):
+    """Handle Notion OAuth callback"""
+    code = request.query_params.get("code")
+    error = request.query_params.get("error")
+    
+    if error:
+        raise HTTPException(status_code=400, detail=f"OAuth error: {error}")
+    
+    if not code:
+        raise HTTPException(status_code=400, detail="No authorization code received")
+    
+    # Exchange code for access token
+    client_id = os.getenv("NOTION_OAUTH_CLIENT_ID")
+    client_secret = os.getenv("NOTION_OAUTH_CLIENT_SECRET")
+    redirect_uri = os.getenv("NOTION_REDIRECT_URI")
+    
+    token_data = {
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": redirect_uri
+    }
+    
+    headers = {
+        "Authorization": f"Basic {__encode_credentials(client_id, client_secret)}",
+        "Content-Type": "application/json"
+    }
     
     try:
-        # First parse the PDF (same as existing endpoint)
-        file_path = f"data/prospectuses/{file.filename}"
-        with open(file_path, "wb") as f:
-            content = await file.read()
-            f.write(content)
+        response = requests.post(
+            "https://api.notion.com/v1/oauth/token",
+            json=token_data,
+            headers=headers
+        )
         
-        # Extract and parse
-        parser = get_parser()
-        text = parser.extract_text_from_pdf(file_path)
+        if response.status_code != 200:
+            raise HTTPException(status_code=400, detail="Failed to exchange code for token")
         
-        # Try LLM parsing first, fallback to regex
-        try:
-            data = parser.parse_with_llm(text)
-        except Exception as e:
-            print(f"LLM parsing failed: {e}")
-            data = parser.quick_parse(text)
+        token_info = response.json()
+        access_token = token_info.get("access_token")
         
-        # Create in Notion
-        notion = get_notion()
-        notion_id = notion.add_prospectus(data)
+        # Store the access token securely (in production, use a database)
+        # For now, we will set it as an environment variable
+        os.environ["NOTION_ACCESS_TOKEN"] = access_token
         
-        # Also save to local database
-        db = SessionLocal()
-        prospectus = Prospectus(**data)
-        db.add(prospectus)
-        db.commit()
-        db.refresh(prospectus)
-        db.close()
-        
-        return {
-            "status": "success",
-            "notion_id": notion_id,
-            "local_id": prospectus.id,
-            "data": data
-        }
+        # Redirect to main app with success
+        return RedirectResponse(url="/?auth=success")
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"OAuth error: {str(e)}")
 
-# Catch-all route to serve frontend for SPA routing
-@app.get("/{full_path:path}")
-def catch_all(full_path: str):
-    # Don't interfere with API routes
-    if full_path.startswith("api/"):
-        raise HTTPException(status_code=404, detail="API endpoint not found")
-    
-    # Serve static files
-    frontend_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend")
-    file_path = os.path.join(frontend_path, full_path)
-    
-    if os.path.exists(file_path) and os.path.isfile(file_path):
-        return FileResponse(file_path)
-    
-    # For everything else, serve index.html (SPA routing)
-    index_path = os.path.join(frontend_path, "index.html")
-    if os.path.exists(index_path):
-        return FileResponse(index_path)
-    
-    raise HTTPException(status_code=404, detail="Page not found")
+def __encode_credentials(client_id: str, client_secret: str) -> str:
+    """Encode OAuth credentials for Basic auth"""
+    import base64
+    credentials = f"{client_id}:{client_secret}"
+    return base64.b64encode(credentials.encode()).decode()
+
+@app.get("/auth/status")
+def auth_status():
+    """Check if user is authenticated with Notion"""
+    token = os.getenv("NOTION_ACCESS_TOKEN")
+    return {"authenticated": bool(token)}
