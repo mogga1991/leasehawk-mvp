@@ -27,40 +27,51 @@ function initializeMap() {
 
 async function autoSyncAndLoadOpportunities() {
     try {
-        // First sync from Notion automatically
-        console.log('Auto-syncing from Notion...');
-        await fetch(`${API_URL}/sync-from-notion/`, {
-            method: 'POST'
-        });
-        
-        // Then load the opportunities
+        // Load opportunities directly from database
+        console.log('Loading GSA pipeline from database...');
         await loadOpportunities();
     } catch (error) {
-        console.error('Error auto-syncing from Notion:', error);
-        // Still try to load any existing opportunities
-        await loadOpportunities();
+        console.error('Error loading GSA pipeline:', error);
     }
 }
 
 async function loadOpportunities() {
     try {
-        const response = await fetch(`${API_URL}/opportunities/`);
-        opportunities = await response.json();
+        const response = await fetch(`${API_URL}/api/gsa-pipeline/`);
+        const data = await response.json();
         
-        // Update opportunity count
-        document.getElementById('opportunityCount').textContent = 
-            `${opportunities.length} GSA opportunities in pipeline`;
-        
-        // Render opportunities list
-        renderOpportunities(opportunities);
-        
-        // Load matches for each opportunity
-        for (let opp of opportunities) {
-            await loadMatchesForOpportunity(opp.prospectus.id);
+        if (data.status === 'success') {
+            opportunities = data.opportunities;
+            
+            // Update opportunity count and summary stats
+            document.getElementById('opportunityCount').textContent = 
+                `${data.pipeline_summary.total_opportunities} GSA opportunities ($${(data.pipeline_summary.total_annual_value / 1000000).toFixed(1)}M pipeline)`;
+            
+            // Render opportunities list
+            renderOpportunities(opportunities);
+            
+            // Load matches for each opportunity
+            for (let opp of opportunities) {
+                await loadMatchesForOpportunity(opp.id);
+            }
+        } else {
+            throw new Error('Failed to load pipeline data');
         }
     } catch (error) {
         console.error('Error loading opportunities:', error);
+        showErrorMessage('Failed to load GSA opportunities. Please check your database connection.');
     }
+}
+
+function showErrorMessage(message) {
+    document.getElementById('opportunitiesList').innerHTML = `
+        <div style="padding: 40px; text-align: center; color: #dc2626;">
+            <i class="fas fa-exclamation-triangle" style="font-size: 48px; margin-bottom: 16px; display: block;"></i>
+            <h3 style="margin-bottom: 8px;">Error Loading Data</h3>
+            <p style="margin-bottom: 16px;">${message}</p>
+            <button onclick="loadOpportunities()" style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Retry</button>
+        </div>
+    `;
 }
 
 function renderOpportunities(opps) {
@@ -69,30 +80,42 @@ function renderOpportunities(opps) {
             <div style="padding: 40px; text-align: center; color: #64748b;">
                 <i class="fas fa-database" style="font-size: 48px; margin-bottom: 16px; display: block;"></i>
                 <h3 style="margin-bottom: 8px;">No GSA Opportunities Found</h3>
-                <p style="margin-bottom: 16px;">Add prospectuses to your "GSA Prospectuses Pipeline" Notion database. The app automatically syncs and displays your data.</p>
-                <p style="font-size: 14px; color: #9ca3af;">Make sure your Notion API credentials are configured in the deployment settings.</p>
+                <p style="margin-bottom: 16px;">The database contains no active GSA prospectuses. Add some prospectus data to get started.</p>
+                <p style="font-size: 14px; color: #9ca3af;">Use the seed script or API to populate the database with GSA opportunities.</p>
             </div>
         `;
         return;
     }
     
     const listHTML = opps.map(opp => {
-        const matchCount = propertyMatches[opp.prospectus.id]?.length || 0;
+        const matchCount = opp.match_count || 0;
         const matchClass = matchCount > 5 ? '' : matchCount > 0 ? 'low' : 'none';
         const matchText = matchCount > 0 ? `${matchCount} matches` : 'No matches';
         
+        // Create urgency indicator
+        const urgencyClass = opp.urgency === 'High' ? 'urgent' : opp.urgency === 'Medium' ? 'medium' : 'low';
+        const urgencyText = opp.urgency;
+        
         return `
-            <div class="opportunity-card" onclick="selectOpportunity(${opp.prospectus.id})" 
-                 id="opp-${opp.prospectus.id}">
+            <div class="opportunity-card ${urgencyClass}" onclick="selectOpportunity(${opp.id})" 
+                 id="opp-${opp.id}">
                 <div class="opportunity-header">
                     <div class="agency-info">
-                        <h3>${opp.prospectus.agency}</h3>
+                        <h3>${opp.agency}</h3>
                         <div class="location">
                             <i class="fas fa-map-marker-alt"></i>
-                            <span>${opp.prospectus.location}</span>
+                            <span>${opp.location}</span>
+                        </div>
+                        <div class="prospectus-number" style="font-size: 12px; color: #6b7280; margin-top: 4px;">
+                            ${opp.prospectus_number}
                         </div>
                     </div>
-                    <span class="match-badge ${matchClass}">${matchText}</span>
+                    <div style="text-align: right;">
+                        <span class="match-badge ${matchClass}">${matchText}</span>
+                        <div class="urgency-badge ${urgencyClass}" style="margin-top: 4px; font-size: 11px; padding: 2px 6px; border-radius: 3px;">
+                            ${urgencyText} Priority
+                        </div>
+                    </div>
                 </div>
                 
                 <div class="opportunity-metrics">
@@ -101,16 +124,25 @@ function renderOpportunities(opps) {
                         <div>
                             <div class="metric-label">Space Required</div>
                             <div class="metric-value">
-                                ${(opp.prospectus.estimated_nusf || 0).toLocaleString()} sqft
+                                ${(opp.square_footage || 0).toLocaleString()} sqft
                             </div>
                         </div>
                     </div>
                     <div class="metric-item">
                         <i class="fas fa-calendar"></i>
                         <div>
-                            <div class="metric-label">Lease Term</div>
+                            <div class="metric-label">Lease Expires</div>
                             <div class="metric-value">
-                                ${opp.prospectus.lease_term || '10'} years
+                                ${opp.lease_expiration !== 'TBD' ? opp.lease_expiration : 'TBD'}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="metric-item">
+                        <i class="fas fa-car"></i>
+                        <div>
+                            <div class="metric-label">Parking</div>
+                            <div class="metric-value">
+                                ${opp.parking_required || 0} spaces
                             </div>
                         </div>
                     </div>
@@ -118,12 +150,21 @@ function renderOpportunities(opps) {
                 
                 <div class="opportunity-footer">
                     <div class="annual-value">
-                        $${((opp.prospectus.estimated_annual_cost || 0) / 1000).toFixed(0)}K/year
+                        $${((opp.annual_value || 0) / 1000).toFixed(0)}K/year
                     </div>
-                    <button class="action-btn" onclick="event.stopPropagation(); findMatches(${opp.prospectus.id})">
+                    <div class="match-score" style="margin-left: 8px; font-size: 12px; color: #6b7280;">
+                        Best: ${opp.best_match_score}%
+                    </div>
+                    <button class="action-btn" onclick="event.stopPropagation(); findMatches(${opp.id})">
                         View Matches
                     </button>
                 </div>
+                
+                ${opp.special_requirements ? `
+                    <div class="requirements" style="margin-top: 8px; padding: 8px; background: #f8fafc; border-radius: 4px; font-size: 12px; color: #374151;">
+                        <strong>Requirements:</strong> ${opp.special_requirements}
+                    </div>
+                ` : ''}
             </div>
         `;
     }).join('');
@@ -133,11 +174,35 @@ function renderOpportunities(opps) {
 
 async function loadMatchesForOpportunity(prospectusId) {
     try {
-        const response = await fetch(`${API_URL}/match-properties/${prospectusId}`, {
-            method: 'POST'
-        });
-        const result = await response.json();
-        propertyMatches[prospectusId] = result.top_matches || [];
+        // Get matches from our database
+        const response = await fetch(`${API_URL}/matches/`);
+        const allMatches = await response.json();
+        
+        // Filter matches for this prospectus
+        const prospectusMatches = allMatches.filter(match => match.prospectus_id === prospectusId);
+        
+        // Convert to expected format for map display
+        const formattedMatches = await Promise.all(prospectusMatches.map(async (match) => {
+            // Get property details
+            const propResponse = await fetch(`${API_URL}/properties/`);
+            const properties = await propResponse.json();
+            const property = properties.find(p => p.id === match.property_id);
+            
+            return {
+                match_id: match.id,
+                property: property || {},
+                scores: {
+                    total_score: match.total_score || 0,
+                    size_score: match.size_score || 0,
+                    location_score: match.location_score || 0,
+                    parking_score: match.parking_score || 0,
+                    price_score: match.price_score || 0
+                },
+                notes: match.notes
+            };
+        }));
+        
+        propertyMatches[prospectusId] = formattedMatches;
     } catch (error) {
         console.error(`Error loading matches for prospectus ${prospectusId}:`, error);
         propertyMatches[prospectusId] = [];

@@ -9,6 +9,9 @@
     --border: #e5e7eb;
     --text-primary: #1e293b;
     --text-secondary: #64748b;
+    --urgent: #dc2626;
+    --medium: #ea580c;
+    --low: #65a30d;
 }
 
 * {
@@ -263,6 +266,42 @@ body {
 
 .match-badge.none {
     background: var(--text-secondary);
+}
+
+/* Urgency badges */
+.urgency-badge {
+    background: var(--low);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.urgency-badge.urgent {
+    background: var(--urgent);
+}
+
+.urgency-badge.medium {
+    background: var(--medium);
+}
+
+.urgency-badge.low {
+    background: var(--low);
+}
+
+/* Opportunity card urgency styling */
+.opportunity-card.urgent {
+    border-left: 4px solid var(--urgent);
+}
+
+.opportunity-card.medium {
+    border-left: 4px solid var(--medium);
+}
+
+.opportunity-card.low {
+    border-left: 4px solid var(--low);
 }
 
 .opportunity-metrics {
