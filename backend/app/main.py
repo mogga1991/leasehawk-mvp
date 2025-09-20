@@ -1,6 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 import os
 from dotenv import load_dotenv
 from datetime import datetime
@@ -27,6 +28,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount static files (frontend)
+frontend_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "frontend")
+frontend_path = os.path.abspath(frontend_path)
+if os.path.exists(frontend_path):
+    app.mount("/static", StaticFiles(directory=frontend_path), name="static")
 
 # Initialize services lazily to avoid startup errors
 parser = None
@@ -60,6 +67,22 @@ def get_notion():
 
 @app.get("/")
 def read_root():
+    # Serve the frontend index.html at root
+    frontend_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "frontend")
+    frontend_path = os.path.abspath(frontend_path)
+    index_path = os.path.join(frontend_path, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    else:
+        return {
+            "name": "LeaseHawk MVP",
+            "version": "0.1.0",
+            "status": "operational",
+            "message": "Frontend files not found"
+        }
+
+@app.get("/api/status")
+def api_status():
     return {
         "name": "LeaseHawk MVP",
         "version": "0.1.0",
@@ -266,6 +289,27 @@ async def push_match_to_notion(prospectus_id: int, property_id: int):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# Catch-all route to serve frontend for SPA routing
+@app.get("/{full_path:path}")
+def catch_all(full_path: str):
+    # Don't interfere with API routes
+    if full_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="API endpoint not found")
+    
+    # Serve static files
+    frontend_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend")
+    file_path = os.path.join(frontend_path, full_path)
+    
+    if os.path.exists(file_path) and os.path.isfile(file_path):
+        return FileResponse(file_path)
+    
+    # For everything else, serve index.html (SPA routing)
+    index_path = os.path.join(frontend_path, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    
+    raise HTTPException(status_code=404, detail="Page not found")
     finally:
         db.close()
 
@@ -312,3 +356,24 @@ async def upload_pdf_to_notion(file: UploadFile = File(...)):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# Catch-all route to serve frontend for SPA routing
+@app.get("/{full_path:path}")
+def catch_all(full_path: str):
+    # Don't interfere with API routes
+    if full_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="API endpoint not found")
+    
+    # Serve static files
+    frontend_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend")
+    file_path = os.path.join(frontend_path, full_path)
+    
+    if os.path.exists(file_path) and os.path.isfile(file_path):
+        return FileResponse(file_path)
+    
+    # For everything else, serve index.html (SPA routing)
+    index_path = os.path.join(frontend_path, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    
+    raise HTTPException(status_code=404, detail="Page not found")
