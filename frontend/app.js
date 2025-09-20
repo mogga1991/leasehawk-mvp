@@ -11,7 +11,7 @@ let propertyMatches = {};
 // Initialize map on page load
 document.addEventListener('DOMContentLoaded', function() {
     initializeMap();
-    loadOpportunities();
+    autoSyncAndLoadOpportunities();
 });
 
 function initializeMap() {
@@ -23,6 +23,23 @@ function initializeMap() {
         attribution: '© OpenStreetMap contributors',
         maxZoom: 19
     }).addTo(map);
+}
+
+async function autoSyncAndLoadOpportunities() {
+    try {
+        // First sync from Notion automatically
+        console.log('Auto-syncing from Notion...');
+        await fetch(`${API_URL}/sync-from-notion/`, {
+            method: 'POST'
+        });
+        
+        // Then load the opportunities
+        await loadOpportunities();
+    } catch (error) {
+        console.error('Error auto-syncing from Notion:', error);
+        // Still try to load any existing opportunities
+        await loadOpportunities();
+    }
 }
 
 async function loadOpportunities() {
@@ -52,10 +69,8 @@ function renderOpportunities(opps) {
             <div style="padding: 40px; text-align: center; color: #64748b;">
                 <i class="fas fa-database" style="font-size: 48px; margin-bottom: 16px; display: block;"></i>
                 <h3 style="margin-bottom: 8px;">No GSA Opportunities Found</h3>
-                <p style="margin-bottom: 16px;">Add prospectuses to your "GSA Prospectuses Pipeline" Notion database, then click "Sync from Notion" to load them here.</p>
-                <button class="btn-sync" onclick="syncFromNotion()" style="margin: 0 auto;">
-                    <i class="fas fa-sync"></i> Sync from Notion
-                </button>
+                <p style="margin-bottom: 16px;">Add prospectuses to your "GSA Prospectuses Pipeline" Notion database. The app automatically syncs and displays your data.</p>
+                <p style="font-size: 14px; color: #9ca3af;">Make sure your Notion API credentials are configured in the deployment settings.</p>
             </div>
         `;
         return;
@@ -309,41 +324,9 @@ function sortBy(criteria) {
     renderOpportunities(sorted);
 }
 
-// Sync Functions
-function toggleSyncModal() {
-    const modal = document.getElementById('syncModal');
-    modal.style.display = modal.style.display === 'none' ? 'flex' : 'none';
-}
-
-async function syncFromNotion() {
-    toggleSyncModal();
-    
-    try {
-        const response = await fetch(`${API_URL}/sync-from-notion/`, {
-            method: 'POST'
-        });
-        
-        const result = await response.json();
-        
-        document.getElementById('syncResult').innerHTML = `
-            <div style="color: #10b981; margin-top: 16px;">
-                ✅ Successfully synced ${result.prospectuses_synced || 0} prospectuses and ${result.properties_synced || 0} properties from Notion!
-            </div>
-        `;
-        
-        // Reload opportunities after sync
-        setTimeout(() => {
-            toggleSyncModal();
-            loadOpportunities();
-        }, 2000);
-    } catch (error) {
-        console.error('Error:', error);
-        document.getElementById('syncResult').innerHTML = `
-            <div style="color: #ef4444; margin-top: 16px;">
-                ❌ Error syncing from Notion. Please check your API configuration.
-            </div>
-        `;
-    }
+// Auto-refresh functionality
+function refreshData() {
+    autoSyncAndLoadOpportunities();
 }
 
 async function findMatches(prospectusId) {

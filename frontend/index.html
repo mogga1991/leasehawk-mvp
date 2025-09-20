@@ -22,9 +22,7 @@
                 <span class="opportunities-count" id="opportunityCount">0 GSA opportunities in pipeline</span>
             </div>
             <div class="header-actions">
-                <button class="btn-sync" onclick="syncFromNotion()">
-                    <i class="fas fa-sync"></i> Sync from Notion
-                </button>
+                <!-- Auto-syncs with Notion -->
             </div>
         </header>
 
@@ -98,18 +96,6 @@
             </div>
         </div>
 
-        <!-- Sync Status Modal -->
-        <div class="modal" id="syncModal" style="display: none;">
-            <div class="modal-content">
-                <span class="close" onclick="toggleSyncModal()">&times;</span>
-                <h2>Sync from Notion</h2>
-                <div class="sync-area">
-                    <i class="fas fa-database"></i>
-                    <p>Syncing data from your "GSA Prospectuses Pipeline" database...</p>
-                    <div id="syncResult"></div>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Leaflet JS for mapping -->
