@@ -9,7 +9,11 @@ from typing import Dict, Any
 class ProspectusParser:
     def __init__(self):
         api_key = os.getenv("OPENAI_API_KEY")
-        self.client = OpenAI(api_key=api_key) if api_key else None
+        try:
+            self.client = OpenAI(api_key=api_key) if api_key else None
+        except Exception as e:
+            print(f"Warning: Failed to initialize OpenAI client: {e}")
+            self.client = None
     
     def extract_text_from_pdf(self, pdf_path: str) -> str:
         """Extract raw text from PDF"""

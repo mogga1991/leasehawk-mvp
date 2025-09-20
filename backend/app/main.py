@@ -28,11 +28,35 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize services
-parser = ProspectusParser()
-scraper = GSAScraper()
-matcher = PropertyMatcher()
-notion = NotionSync()
+# Initialize services lazily to avoid startup errors
+parser = None
+scraper = None
+matcher = None
+notion = None
+
+def get_parser():
+    global parser
+    if parser is None:
+        parser = ProspectusParser()
+    return parser
+
+def get_scraper():
+    global scraper
+    if scraper is None:
+        scraper = GSAScraper()
+    return scraper
+
+def get_matcher():
+    global matcher
+    if matcher is None:
+        matcher = PropertyMatcher()
+    return matcher
+
+def get_notion():
+    global notion
+    if notion is None:
+        notion = NotionSync()
+    return notion
 
 @app.get("/")
 def read_root():
@@ -53,6 +77,7 @@ async def parse_prospectus(file: UploadFile = File(...)):
         f.write(content)
     
     # Extract text and parse
+    parser = get_parser()
     text = parser.extract_text_from_pdf(file_path)
     
     # Try LLM parsing first, fallback to regex
@@ -95,6 +120,7 @@ def match_properties(prospectus_id: int):
     properties = db.query(Property).all()
     
     # Find matches
+    matcher = get_matcher()
     matches = matcher.find_matches(
         prospectus.__dict__,
         [p.__dict__ for p in properties]
@@ -146,6 +172,7 @@ async def sync_from_notion():
     
     try:
         # Sync prospectuses
+        notion = get_notion()
         notion_prospectuses = notion.get_prospectuses()
         prospectuses_synced = 0
         
@@ -228,6 +255,7 @@ async def push_match_to_notion(prospectus_id: int, property_id: int):
         
         # For now, we'll use the prospectus number as a fallback
         # In production, you'd store Notion IDs in your database
+        notion = get_notion()
         notion.update_match_score(
             prospectus.prospectus_number,  # This should be notion_id
             str(property.id),  # This should be notion_id
@@ -253,6 +281,7 @@ async def upload_pdf_to_notion(file: UploadFile = File(...)):
             f.write(content)
         
         # Extract and parse
+        parser = get_parser()
         text = parser.extract_text_from_pdf(file_path)
         
         # Try LLM parsing first, fallback to regex
@@ -263,6 +292,7 @@ async def upload_pdf_to_notion(file: UploadFile = File(...)):
             data = parser.quick_parse(text)
         
         # Create in Notion
+        notion = get_notion()
         notion_id = notion.add_prospectus(data)
         
         # Also save to local database
